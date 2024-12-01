@@ -1,1 +1,264 @@
-
+#define  REMOTEXY_MODE__ESP8266_SOFTSERIAL
+#include "flprogUtilites.h"
+#include <RemoteXY.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include "DHT_NEW.h"
+#include <SFE_BMP180.h>
+DHT _dht1;
+SFE_BMP180  _bmp085;
+long _bmp085P = 0;
+int _bmp085T = 0;
+long _bmp085A = 0;
+double BMP085_SeaPressure;
+LiquidCrystal_I2C _lcd1(0x27, 16, 2);
+int _dispTempLength1=0;
+boolean _isNeedClearDisp1;
+#define REMOTEXY_SERIAL_RX 3
+#define REMOTEXY_SERIAL_TX 0
+#define REMOTEXY_SERIAL_SPEED 9600
+#define REMOTEXY_WIFI_SSID "AirMonitor"
+#define REMOTEXY_WIFI_PASSWORD ""
+#define REMOTEXY_SERVER_PORT 6377
+#pragma pack(push, 1)
+uint8_t RemoteXY_CONF[] = {255, 3, 0, 6, 0, 72, 1, 19, 0, 0, 0, 65, 105, 114, 77, 111, 110, 105, 116, 111, 114, 0, 31, 1, 106, 200, 1, 1, 15, 0, 74, 2, 18, 40, 10, 12, 2, 30, 65, 64, 83, 116, 114, 105, 110, 103, 32, 49, 0, 129, 3, 5, 74, 12, 64, 78, 208, 162, 208, 181, 208, 188, 208, 191, 208, 181, 209, 128, 208, 176, 209, 130, 209, 131, 209, 128, 208, 176, 0, 129, 3, 33, 63, 12, 64, 78, 208, 146, 208, 187, 208, 176, 208, 182, 208, 189, 208, 190, 209, 129, 209, 130, 209, 140, 0, 74, 2, 48, 40, 10, 12, 2, 30, 65, 64, 83, 116, 114, 105, 110, 103, 32, 49, 0, 129, 3, 62, 56, 12, 64, 78, 208, 148, 208, 176, 208, 178, 208, 187, 208, 181, 208, 189, 208, 184, 208, 181, 0, 74, 2, 77, 40, 10, 12, 2, 30, 65, 64, 83, 116, 114, 105, 110, 103, 32, 49, 0, 2, 1, 105, 25, 11, 0, 2, 26, 31, 31, 79, 78, 0, 79, 70, 70, 0, 129, 0, 97, 29, 7, 64, 78, 208, 161, 208, 191, 208, 176, 208, 187, 209, 140, 208, 189, 209, 143, 0, 2, 39, 106, 25, 11, 0, 2, 26, 31, 31, 79, 78, 0, 79, 70, 70, 0, 2, 78, 105, 25, 11, 0, 2, 26, 31, 31, 79, 78, 0, 79, 70, 70, 0, 129, 42, 97, 18, 7, 64, 78, 208, 158, 209, 132, 208, 184, 209, 129, 0, 129, 77, 97, 28, 7, 64, 78, 208, 148, 208, 181, 209, 130, 209, 129, 208, 186, 208, 176, 209, 143, 0, 74, 0, 139, 106, 10, 12, 2, 30, 37, 64, 83, 116, 114, 105, 110, 103, 32, 49, 0, 74, 0, 153, 106, 10, 12, 2, 30, 37, 64, 83, 116, 114, 105, 110, 103, 32, 49, 0, 74, 0, 167, 106, 10, 12, 2, 30, 37, 64, 83, 116, 114, 105, 110, 103, 32, 49, 0};
+struct 
+{
+    unsigned char strings_01;
+    unsigned char strings_02;
+    unsigned char strings_03;
+    unsigned char strings_04;
+    unsigned char switch_01;
+    unsigned char switch_02;
+    unsigned char switch_03;
+    unsigned char strings_05;
+    unsigned char strings_06;
+    unsigned char connect_flag;
+}
+ RemoteXY;
+#pragma pack(pop)
+int _gtv1;
+int _gtv2;
+int _gtv3;
+int _gtv4;
+int _gtv8;
+int _gtv9;
+String _gtv5;
+String _gtv6;
+String _gtv7;
+int _disp2oldLength = 0;
+int _convertStringToNamberOutput_6 = 0;
+int _disp3oldLength = 0;
+int _convertStringToNamberOutput_5 = 0;
+unsigned long _bmp0851Tti = 0UL;
+int _disp1oldLength = 0;
+int _convertStringToNamberOutput_3 = 0;
+unsigned long _dht1LRT = 0UL;
+unsigned long _dht1Tti = 0UL;
+String _tempVariable_String;
+byte _tempVariable_byte;
+void setup()
+{
+    Wire.begin();
+    delay(10);
+    RemoteXY_Init ();
+    _bmp085.begin();
+    _lcd1.init();
+    _lcd1.backlight();
+    _dht1.setup(2);
+    _dht1LRT = millis();
+    _dht1Tti = millis();
+}
+void loop()
+{
+    if (_isNeedClearDisp1) 
+    {
+        _lcd1.clear();
+        _isNeedClearDisp1= 0;
+    }
+    RemoteXY_Handler  ();
+    if(flprog::isTimer(_bmp0851Tti, 3000)) 
+    {
+        _bmp0851Tti = millis();
+        double _tempBMP085TData;
+        _tempVariable_byte = _bmp085.startTemperature();
+        if (_tempVariable_byte != 0) 
+        {
+            delay(_tempVariable_byte);
+            _tempVariable_byte = _bmp085.getTemperature(_tempBMP085TData);
+            if (_tempVariable_byte != 0) 
+            {
+                _bmp085T =  _tempBMP085TData*10;
+                double _tempBMP085PData;
+                _tempVariable_byte = _bmp085.startPressure(3);
+                if (_tempVariable_byte != 0) 
+                {
+                    delay(_tempVariable_byte);
+                    _tempVariable_byte = _bmp085.getPressure(_tempBMP085PData, _tempBMP085TData);
+                    if (_tempVariable_byte != 0) 
+                    {
+                        _bmp085P =  _tempBMP085PData*100;
+                        _bmp085A = _bmp085.altitude(_tempBMP085PData,BMP085_SeaPressure);
+                    }
+                }
+            }
+        }
+    }
+    //Плата:1
+    if(flprog::isTimer(_dht1Tti, 3000)) 
+    {
+        if(flprog::isTimer(_dht1LRT,(_dht1.getMinimumSamplingPeriod()))) 
+        {
+            _dht1.readSensor();
+            _dht1LRT = millis();
+            _dht1Tti = millis();
+        }
+    }
+    if (1) 
+    {
+        _dispTempLength1 = ((((String("WET=")) + ((_floatToStringWitRaz(_dht1.humidity,0))) + (String("%"))))).length();
+        if (_disp2oldLength > _dispTempLength1) 
+        {
+            _isNeedClearDisp1 = 1;
+        }
+        _disp2oldLength = _dispTempLength1;
+        _lcd1.setCursor(6, 0);
+        _lcd1.print((((String("WET=")) + ((_floatToStringWitRaz(_dht1.humidity,0))) + (String("%")))));
+    }
+     else 
+    {
+        if (_disp2oldLength > 0) 
+        {
+            _isNeedClearDisp1 = 1;
+            _disp2oldLength = 0;
+        }
+    }
+    if ((_dht1.humidity) > (_gtv3)) 
+    {
+        _gtv6 = String("high wet");
+    }
+    if (1) 
+    {
+        _dispTempLength1 = (((((_floatToStringWitRaz(_dht1.temperature,0))) + (String("*C"))))).length();
+        if (_disp1oldLength > _dispTempLength1) 
+        {
+            _isNeedClearDisp1 = 1;
+        }
+        _disp1oldLength = _dispTempLength1;
+        _lcd1.setCursor(0, 0);
+        _lcd1.print(((((_floatToStringWitRaz(_dht1.temperature,0))) + (String("*C")))));
+    }
+     else 
+    {
+        if (_disp1oldLength > 0) 
+        {
+            _isNeedClearDisp1 = 1;
+            _disp1oldLength = 0;
+        }
+    }
+    _gtv1 = _bmp085A;
+    if ((_bmp085P) > (_gtv4)) 
+    {
+        _gtv7 = String("high pa");
+    }
+    if (1) 
+    {
+        _dispTempLength1 = (((String(_bmp085P, DEC)))).length();
+        if (_disp3oldLength > _dispTempLength1) 
+        {
+            _isNeedClearDisp1 = 1;
+        }
+        _disp3oldLength = _dispTempLength1;
+        _lcd1.setCursor(int((16 - _dispTempLength1)/2), 1);
+        _lcd1.print(((String(_bmp085P, DEC))));
+    }
+     else 
+    {
+        if (_disp3oldLength > 0) 
+        {
+            _isNeedClearDisp1 = 1;
+            _disp3oldLength = 0;
+        }
+    }
+    _gtv1 = _bmp085T;
+    _tempVariable_String = _gtv5;
+    _convertStringToNamberOutput_3 = strtol(_tempVariable_String.c_str(),NULL,10);
+    _tempVariable_String = _gtv6;
+    _convertStringToNamberOutput_5 = strtol(_tempVariable_String.c_str(),NULL,10);
+    _tempVariable_String = _gtv7;
+    _convertStringToNamberOutput_6 = strtol(_tempVariable_String.c_str(),NULL,10);
+    RemoteXY.strings_01 = _dht1.temperature;
+    RemoteXY.strings_02 = _dht1.humidity;
+    RemoteXY.strings_03 = _bmp085P;
+    RemoteXY.strings_04 = _convertStringToNamberOutput_3;
+    RemoteXY.strings_05 = _convertStringToNamberOutput_5;
+    RemoteXY.strings_06 = _convertStringToNamberOutput_6;
+    if (!((RemoteXY.switch_03))) 
+    {
+        _gtv9 = 40;
+    }
+    if (!((RemoteXY.switch_03))) 
+    {
+        _gtv8 = 18;
+    }
+    if (!((RemoteXY.switch_03))) 
+    {
+        _gtv3 = 60;
+    }
+    if (!((RemoteXY.switch_03))) 
+    {
+        _gtv4 = 101300;
+    }
+    if (!((RemoteXY.switch_03))) 
+    {
+        _gtv2 = 22;
+    }
+    if (!((RemoteXY.switch_02))) 
+    {
+        _gtv9 = 40;
+    }
+    if (!((RemoteXY.switch_02))) 
+    {
+        _gtv8 = 16;
+    }
+    if (!((RemoteXY.switch_02))) 
+    {
+        _gtv3 = 60;
+    }
+    if (!((RemoteXY.switch_02))) 
+    {
+        _gtv4 = 101300;
+    }
+    if (!((RemoteXY.switch_02))) 
+    {
+        _gtv2 = 20;
+    }
+    if (!((RemoteXY.switch_01))) 
+    {
+        _gtv9 = 40;
+    }
+    if (!((RemoteXY.switch_01))) 
+    {
+        _gtv8 = 20;
+    }
+    if (!((RemoteXY.switch_01))) 
+    {
+        _gtv3 = 60;
+    }
+    if (!((RemoteXY.switch_01))) 
+    {
+        _gtv4 = 101300;
+    }
+    if (!((RemoteXY.switch_01))) 
+    {
+        _gtv2 = 24;
+    }
+    if ((_dht1.temperature) > (_gtv2)) 
+    {
+        _gtv5 = String("high temp");
+    }
+}
+String  _floatToStringWitRaz(float value, int raz)
+{
+    return String(value,raz);
+}
